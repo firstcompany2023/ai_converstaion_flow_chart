@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Telegram AI 客服流程</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+:root{--bg:#EEF3F7;--card:#FFFFFF;--ink:#14233C;--mute:#5B6B82;--line:#C9D5E2;--tg:#2AABEE;--lv:#14233C;--db:#E8A33D;--ai:#0E9F8E;--api:#7A5CC7;--hi:#E9F7F5;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0F1A2B;--card:#182640;--ink:#E8EEF7;--mute:#98A8C0;--line:#2D4163;--hi:#12362F}}
+:root[data-theme="dark"]{--bg:#0F1A2B;--card:#182640;--ink:#E8EEF7;--mute:#98A8C0;--line:#2D4163;--hi:#12362F}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;line-height:1.6}
+main{max-width:1080px;margin:0 auto;padding:24px 16px 40px}
+h1{font-size:clamp(22px,4vw,32px);margin:0 0 4px;font-weight:700}
+.sub{color:var(--mute);margin:0 0 20px}
+.grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:20px;align-items:start}
+@media(max-width:820px){.grid{grid-template-columns:1fr}}
+.stage{background:var(--card);border-radius:16px;padding:8px;border:1px solid var(--line)}
+svg{width:100%;height:auto;display:block}
+.edge{stroke:var(--line);stroke-width:2;stroke-dasharray:5 6;transition:stroke .3s}
+.edge.on{stroke:var(--ai);stroke-dasharray:none;stroke-width:3}
+.node rect{fill:var(--card);stroke-width:2.5;transition:all .3s}
+.node text{fill:var(--ink);font-size:15px;font-weight:700;text-anchor:middle}
+.node .s{font-size:11px;font-weight:400;fill:var(--mute)}
+.node.on rect{fill:var(--hi);stroke-width:4}
+.pk circle{fill:var(--ai)}
+.pk rect{fill:var(--ink)}
+.pk text{fill:var(--bg);font-size:12px;font-weight:500;text-anchor:middle}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.step{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;cursor:pointer;display:grid;grid-template-columns:32px 1fr;gap:10px;opacity:.6;transition:opacity .3s,border-color .3s,background .3s}
+.step .n{width:32px;height:32px;border-radius:50%;background:var(--line);color:var(--ink);display:grid;place-items:center;font-weight:700;transition:all .3s}
+.step b{display:block}
+.step p{margin:0;color:var(--mute);font-size:14px;max-height:0;overflow:hidden;transition:max-height .4s}
+.step.on{opacity:1;border-color:var(--ai);background:var(--hi)}
+.step.on .n{background:var(--ai);color:#fff}
+.step.on p{max-height:120px}
+.tag{display:inline-block;font-size:12px;border:1px solid var(--api);color:var(--api);border-radius:99px;padding:0 8px;margin-left:6px;font-weight:400}
+.ctl{display:flex;gap:8px;margin:0 0 12px}
+button{font:inherit;background:var(--ink);color:var(--bg);border:0;border-radius:99px;padding:6px 16px;cursor:pointer}
+button.g{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+button:focus-visible,.step:focus-visible{outline:3px solid var(--tg);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main>
+<h1>Telegram AI 客服流程</h1>
+<p class="sub">客戶一傳訊息，到 AI 回覆送回 Telegram，全程七個步驟。</p>
+<div class="grid">
+<div class="stage">
+<svg viewBox="0 0 560 440" role="img" aria-label="Telegram、Laravel、MySQL、OpenAI、外部 API 之間的資料流動">
+<g id="edges"></g>
+<g id="nodes"></g>
+<g class="pk" id="pk" opacity="0"><circle r="9"/><rect x="-50" y="-34" width="100" height="22" rx="11"/><text y="-19"></text></g>
+</svg>
+</div>
+<div>
+<div class="ctl"><button id="pp">暫停</button><button class="g" id="pv">上一步</button><button class="g" id="nx">下一步</button></div>
+<ol class="steps" id="steps"></ol>
+</div>
+</div>
+</main>
+<script>
+var N={T:{x:90,y:70,n:"Telegram",s:"客戶",c:"--tg"},L:{x:280,y:220,n:"Laravel",s:"Cron A／Cron B",c:"--lv"},D:{x:90,y:370,n:"MySQL",s:"訊息與紀錄",c:"--db"},A:{x:470,y:70,n:"OpenAI",s:"AI 模型",c:"--ai"},X:{x:470,y:370,n:"你指定的 API",s:"工具",c:"--api"}};
+var S=[
+{t:"①",h:"收到客戶訊息",d:"客戶在 Telegram 傳來一則對話。",g:[["T","T","客戶訊息"]]},
+{t:"②",h:"Cron A：取得並儲存",d:"呼叫 getUpdates，把訊息寫入 MySQL，並避免重複儲存。",g:[["T","L","getUpdates"],["L","D","寫入並去重"]]},
+{t:"③",h:"Cron B：找出待處理訊息",d:"從資料庫取得尚未處理的訊息與必要的對話歷史。",g:[["D","L","待處理＋歷史"]]},
+{t:"④",h:"第一次呼叫 OpenAI",d:"送出角色提示詞、客戶訊息、對話歷史與工具定義，AI 判斷要直接回答，還是呼叫工具。",g:[["L","A","提示詞＋工具定義"],["A","L","直接答／用工具"]]},
+{t:"⑤",h:"Laravel 執行工具",d:"驗證工具名稱與參數，再呼叫指定的 API。不需要工具就跳過。",o:1,g:[["L","X","驗證後呼叫"],["X","L","工具結果"]]},
+{t:"⑥",h:"第二次呼叫 OpenAI",d:"把工具結果交給 AI，組織成自然語言的回答。",o:1,g:[["L","A","工具結果"],["A","L","自然語言回答"]]},
+{t:"⑦",h:"儲存並傳送回答",d:"呼叫 sendMessage 送回 Telegram，並記錄處理與發送結果。",g:[["L","D","儲存回答與紀錄"],["L","T","sendMessage"]]}
+];
+var NS="http://www.w3.org/2000/svg",E=document.getElementById("edges"),G=document.getElementById("nodes"),PK=document.getElementById("pk"),PT=PK.querySelector("text");
+function el(t,a,p){var e=document.createElementNS(NS,t);for(var k in a)e.setAttribute(k,a[k]);p.appendChild(e);return e}
+var edges={};
+["T","D","A","X"].forEach(function(k){edges[k]=el("line",{class:"edge",x1:N.L.x,y1:N.L.y,x2:N[k].x,y2:N[k].y},E)});
+var nodes={};
+for(var k in N){var n=N[k],g=el("g",{class:"node",transform:"translate("+n.x+","+n.y+")"},G);
+var r=el("rect",{x:-70,y:-30,width:140,height:60,rx:14},g);r.style.stroke="var("+n.c+")";
+var a=el("text",{y:-3},g);a.textContent=n.n;var b=el("text",{class:"s",y:15},g);b.textContent=n.s;nodes[k]=g}
+var ol=document.getElementById("steps"),items=[];
+S.forEach(function(s,i){var li=document.createElement("li");li.className="step";li.tabIndex=0;
+li.innerHTML='<span class="n">'+s.t+'</span><div><b>'+s.h+(s.o?'<span class="tag">有用到工具才執行</span>':'')+'</b><p>'+s.d+'</p></div>';
+li.onclick=function(){play(i)};li.onkeydown=function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();play(i)}};
+ol.appendChild(li);items.push(li)});
+var token=0,cur=0,playing=true,pp=document.getElementById("pp");
+var reduce=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+function wait(ms,my){return new Promise(function(r){setTimeout(r,ms)})}
+function show(i){cur=i;items.forEach(function(x,j){x.classList.toggle("on",j===i)});
+for(var k in nodes)nodes[k].classList.remove("on");for(var k in edges)edges[k].classList.remove("on")}
+function seg(a,b,label,my){return new Promise(function(res){
+var A=N[a],B=N[b],t0=null,dur=a===b?900:1100;nodes[a].classList.add("on");nodes[b].classList.add("on");
+var ek=a==="L"?b:a;if(a!==b&&edges[ek])edges[ek].classList.add("on");
+PT.textContent=label;PK.setAttribute("opacity","1");
+function f(ts){if(my!==token){res();return}if(t0===null)t0=ts;var p=Math.min((ts-t0)/dur,1),e=p<.5?2*p*p:1-Math.pow(-2*p+2,2)/2;
+var x=A.x+(B.x-A.x)*e,y=A.y+(B.y-A.y)*e,sc=a===b?1+.25*Math.sin(p*Math.PI*3):1;
+PK.setAttribute("transform","translate("+x+","+(y-(a===b?42:0))+") scale("+sc+")");
+if(p<1)requestAnimationFrame(f);else res()}
+requestAnimationFrame(f)})}
+async function play(i){var my=++token;playing=true;pp.textContent="暫停";
+for(;;){for(;i<S.length;i++){if(my!==token)return;show(i);
+if(reduce){await wait(1800,my)}else{for(var j=0;j<S[i].g.length;j++){var g=S[i].g[j];await seg(g[0],g[1],g[2],my);if(my!==token)return}}
+await wait(900,my);if(my!==token)return}
+PK.setAttribute("opacity","0");await wait(1800,my);if(my!==token)return;i=0}}
+function stop(){token++;playing=false;pp.textContent="播放"}
+pp.onclick=function(){playing?stop():play(cur)};
+document.getElementById("nx").onclick=function(){play((cur+1)%S.length)};
+document.getElementById("pv").onclick=function(){play((cur+S.length-1)%S.length)};
+play(0);
+</script>
+</body>
+</html>
